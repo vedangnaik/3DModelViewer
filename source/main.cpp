@@ -31,24 +31,18 @@ int main() {
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init();
 
+
 	// Load main shader program
+	glEnable(GL_DEPTH_TEST);
 	ShaderProgram mainSP = ShaderProgram("shaders/main.vs", "shaders/main.fs");
-
-	// A simple triangle to test
-	float triVertices[] = {
-		-0.5f, -0.5f, 0.0f,
-		0.5f, -0.5f, 0.0f,
-		0.0f, 0.5f, 0.0f
-	};
-	unsigned int triVAO, triVBO;
-	glGenVertexArrays(1, &triVAO);
-	glGenBuffers(1, &triVBO);
-	glBindVertexArray(triVAO);
-	glBindBuffer(GL_ARRAY_BUFFER, triVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(triVertices), &triVertices[0], GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-
+	Model model = Model("spaceship.dae");
+	Camera cam = Camera(
+		glm::vec3(0.0f, 0.0f, 10.0f),
+		glm::vec3(0.0f, 0.0f, -1.0f),
+		glm::vec3(0.0f, 1.0f, 0.0f),
+		window
+	);
+	
 	// A texture to hold the rendered scene
 	unsigned int tex;
 	glGenTextures(1, &tex);
@@ -65,12 +59,14 @@ int main() {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 
+	// Main render loop
 	while (!glfwWindowShouldClose(window)) {
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();		
 		ImGui::NewFrame();
+
 
 		// Rendering options pane..
 		//	Set startup window size and position, and restrict resize to horizontal only
@@ -87,44 +83,50 @@ int main() {
 		// Bind custom framebuffer so rendered scene is stored in the texture
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 		glBindTexture(GL_TEXTURE_2D, tex);
+		// Clear the buffer before use
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		// Render the scene
 		mainSP.use();
 		mainSP.setUniformMat4("model", glm::mat4(1.0f));
-		mainSP.setUniformMat4("view", glm::lookAt(
-			glm::vec3(0.0f, 0.0f, 3.0f),
-			glm::vec3(0.0f),
-			glm::vec3(0.0f, 1.0f, 0.0f)
-		));
+		mainSP.setUniformMat4("view", cam.getViewMat());
 		mainSP.setUniformMat4("projection", glm::perspective(glm::radians(45.0f), 1.777f, 0.1f, 100.0f));
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+		model.draw();
 		// Go back to default framebuffer so that ImGUI windows can be seen
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glBindTexture(GL_TEXTURE_2D, 0);
-		// Draw again to check
-		glDrawArrays(GL_TRIANGLES, 0, 3);
-
+		model.draw();
 
 		// Rendering model pane..
 		//	Same as above
 		ImGui::SetNextWindowSize(ImVec2(SCR_WIDTH - 500, SCR_HEIGHT), ImGuiCond_Once);
 		ImGui::SetNextWindowSizeConstraints(ImVec2(0, -1), ImVec2(FLT_MAX, -1));
 		ImGui::SetNextWindowPos(ImVec2(500, 0), ImGuiCond_Once);
-		ImGui::Begin("Model", NULL, ImGuiWindowFlags_NoMove);
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 1));
+		ImGui::Begin("Model", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 		//	Move the pane to the right by the width of the options pane..
 		ImGui::SetWindowPos(ImVec2(optionsPaneWidth, 0));
-		//	.. then horizontally shrink it by the same amount.
-		ImGui::SetWindowSize(ImVec2(SCR_WIDTH - optionsPaneWidth, SCR_HEIGHT));
+		//	.. then horizontally shrink it by the same amount. The window dimensions are needed later, hence the variable
+		ImVec2 windowDims = ImVec2(SCR_WIDTH - optionsPaneWidth, SCR_HEIGHT);
+		ImGui::SetWindowSize(windowDims);
 		//	We want to maintain the scene's aspect ratio when the model pane is resized, so the scale factor is calculated here
 		float scale = (float)(SCR_WIDTH - optionsPaneWidth) / (float)SCR_WIDTH;
-		//	The height of the image is scaled down by the scale factor, and the UVs flipped to flip the image
+		//	The image dimensions are thus
+		ImVec2 imageDims = ImVec2(SCR_WIDTH - optionsPaneWidth, SCR_HEIGHT * scale);
+		//	Set the window cursor in the middle so that the image stays centered
+		ImGui::SetCursorPos(ImVec2(
+			(windowDims.x - imageDims.x) * 0.4f, // Weird factor to compensate for taskbar
+			(windowDims.y - imageDims.y) * 0.4f
+		));
+		//	Attach the image to the window
 		ImGui::Image(
 			(void*)tex, 
-			ImVec2(SCR_WIDTH - optionsPaneWidth, SCR_HEIGHT * scale), 
-			ImVec2(1, 1), 
-			ImVec2(0, 0)
+			ImVec2(imageDims), 
+			ImVec2(0, 1), // The image is flipped, so these
+			ImVec2(1, 0)  // UVs are flipped to compensate
 		);
 		ImGui::End();
-
+		ImGui::PopStyleColor();
 
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -132,10 +134,10 @@ int main() {
 		glfwSwapBuffers(window);
 	}
 
+	// Terminate Dear ImGUI and GLFW
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
-
 	glfwDestroyWindow(window);
 	glfwTerminate();
 

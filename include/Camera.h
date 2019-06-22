@@ -79,7 +79,7 @@ public:
 		this->window = window;
 		this->worldUp = worldUp;
 
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 		glfwSetWindowUserPointer(window, this);
 		glfwSetCursorPosCallback(window, cursorCallback);
 		glfwSetKeyCallback(window, keyCallback);		
