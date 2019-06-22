@@ -79,10 +79,10 @@ public:
 		this->window = window;
 		this->worldUp = worldUp;
 
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 		glfwSetWindowUserPointer(window, this);
 		glfwSetCursorPosCallback(window, cursorCallback);
-		glfwSetKeyCallback(window, keyCallback);		
+		glfwSetKeyCallback(window, keyCallback);
 	}
 
 	glm::vec3 getPosition() { return this->position; }

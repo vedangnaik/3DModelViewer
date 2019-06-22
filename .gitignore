@@ -7,6 +7,9 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# My stuff
+defaultModel/
+
 # User-specific files
 *.rsuser
 *.suo
