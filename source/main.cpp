@@ -7,22 +7,25 @@
 #include <GLFW/glfw3.h>
 
 #include <ShaderProgram.h>
-#include <Camera.h>
 #include <Model.h>
-#include <Texture2D.h>
+#include <stb_image.h>
 
 
-// Screen constants, adjust it to your native resolution.
-// TODO find a way to get this automatically, I have been unable to so far.
+// Application constants
+//	Screen constants, adjust it to your native resolution.
+//	TODO find a way to get this automatically, I have been unable to so far.
 unsigned int SCR_WIDTH = 1920;
 unsigned int SCR_HEIGHT = 1080;
 float ASP_RATIO = 1.777f;
-// Model matrix globally defined as it is directly controlled by the user
-glm::mat4 modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.1f));
-// Control sensitivities
-// TODO set these from the GUI
+//	Model matrix globally defined as it is directly controlled by the user
+glm::mat4 modelMatrix = glm::mat4(1.0f);
+//	Control sensitivities
+//	TODO set these from the GUI
 float rotatingAngle = 5.0f; // degrees, set to preference
 float translationalOffset = 0.25f; // unitless, set to preference
+float scaleFactor = 0.05f;
+//	Window constants
+bool PBRWindowOpen = false;
 
 
 // Callback function that controls movement of the model
@@ -100,6 +103,14 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 			translationalOffset * (glm::mat3(glm::inverse(modelMatrix)) * glm::vec3(0.0f, -1.0f, 0.0f))
 		);
 	}
+
+	// Handle zooming in and out
+	if (key == GLFW_KEY_Z && action == GLFW_REPEAT) {
+		modelMatrix = glm::scale(modelMatrix, glm::vec3(1.0f + scaleFactor));
+	}
+	if (key == GLFW_KEY_X && action == GLFW_REPEAT) {
+		modelMatrix = glm::scale(modelMatrix, glm::vec3(1.0f - scaleFactor));
+	}
 }
 
 
@@ -121,46 +132,129 @@ int main() {
 	ImGui_ImplOpenGL3_Init();
 
 
-	// Load main shader program
+	// View and projection matrices
+	glm::mat4 viewMatrix = glm::lookAt(
+		glm::vec3(0.0f, 0.0f, 10.0f),
+		glm::vec3(0.0f),
+		glm::vec3(0.0f, 1.0f, 0.0f)
+	);
+	glm::mat4 projectionMatrix = glm::perspective(
+		glm::radians(45.0f),
+		ASP_RATIO,
+		0.1f,
+		100.0f
+	);
+	// Lighting
+	glm::vec3 lightPositions[] = {
+		glm::vec3(-10.0f, 10.0f, 0.0f),
+		glm::vec3(10.0f, 10.0f, 0.0f),
+		glm::vec3(-10.0f, -10.0f, 0.0f),
+		glm::vec3(-10.0f, -10.0f, 0.0f)
+	};
+	glm::vec3 lightColor = glm::vec3(1.0f);
+	glm::vec3 cameraPosition = glm::vec3(0.0f, 0.0f, 10.0f);
+	// Albedo map handle
+	unsigned int albedoMap;
+
+	// Create albedo map
+	int width, height, nrChannels;
+	glGenTextures(1, &albedoMap);
+	glBindTexture(GL_TEXTURE_2D, albedoMap); 
+	unsigned char* data = stbi_load("defaultModel/layered-rock1-albedo.png", &width, &height, &nrChannels, 0);
+	if (data)
+	{
+		GLenum format;
+		if (nrChannels == 3) format = GL_RGB;
+		else if (nrChannels == 4) format = GL_RGBA;
+		else if (nrChannels == 1) format = GL_RED;
+		else {
+			std::cout << "# channels: " << nrChannels << std::endl;
+		}
+
+		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+	}
+	else
+	{
+		std::cout << "Failed to load texture" << std::endl;
+	}
+	stbi_image_free(data);	
+
+
+	// Load model and shaders
 	glEnable(GL_DEPTH_TEST);
 	ShaderProgram mainSP = ShaderProgram("shaders/main.vs", "shaders/main.fs");
-	Model model = Model("defaultModel/dragon.dae");
+	Model model = Model("defaultModel/crate.3ds");
 
 
 	// Main render loop
 	while (!glfwWindowShouldClose(window)) {
-		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		ImGui_ImplOpenGL3_NewFrame();
-		ImGui_ImplGlfw_NewFrame();		
+		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
 
+		if (ImGui::BeginMainMenuBar()) {
+			if (ImGui::Button("Open Model")) {
+				pfd::open_file f = pfd::open_file("Select your file: ");
+				model = Model(f.result()[0].c_str());
+			}
+			if (ImGui::Button("Choose Albedo Map")) {
+				pfd::open_file f = pfd::open_file("Select albedo map");
+				glDeleteTextures(1, &albedoMap);
+				int width, height, nrChannels;
+				glGenTextures(1, &albedoMap);
+				glBindTexture(GL_TEXTURE_2D, albedoMap);
+				unsigned char* data = stbi_load(f.result()[0].c_str(), &width, &height, &nrChannels, 0);
+				if (data)
+				{
+					GLenum format;
+					if (nrChannels == 3) format = GL_RGB;
+					else if (nrChannels == 4) format = GL_RGBA;
+					else if (nrChannels == 1) format = GL_RED;
+					else {
+						std::cout << "# channels: " << nrChannels << std::endl;
+					}
+
+					glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+					glGenerateMipmap(GL_TEXTURE_2D);
+				}
+				else
+				{
+					std::cout << "Failed to load texture" << std::endl;
+				}
+				stbi_image_free(data);
+			}
+			ImGui::EndMainMenuBar();
+		} 
+
+
+		// Set vertex shader uniforms
 		mainSP.use();
 		mainSP.setUniformMat4("model", modelMatrix);
-		mainSP.setUniformMat4("view", glm::lookAt(
-			glm::vec3(0.0f, 0.0f, 10.0f),
-			glm::vec3(0.0f),
-			glm::vec3(0.0f, 1.0f, 0.0f)
-		));
-		mainSP.setUniformMat4("projection", glm::perspective(
-			glm::radians(45.0f),
-			ASP_RATIO,
-			0.1f,
-			100.0f
-		));
+		mainSP.setUniformMat3("inverseModel", glm::mat3(glm::transpose(glm::inverse(modelMatrix))));
+		mainSP.setUniformMat4("view", viewMatrix);
+		mainSP.setUniformMat4("projection", projectionMatrix);
+
+		// Set fragment shader uniforms
+		//	Set albedo map
+		mainSP.setUniformInt("albedoMap", 0);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, albedoMap);
+		//	Set light positions
+		for (int i = 0; i < 4; i++) {
+			std::string temp = "lightPositions[";
+			temp += std::to_string(i) + "]";
+			mainSP.setUniformVec3(temp.c_str(), lightPositions[i]);
+		}
+		mainSP.setUniformVec3("lightColor", lightColor);
+		mainSP.setUniformVec3("cameraPosition", cameraPosition);
+		// Draw model
 		model.draw();
 
 
-		if (ImGui::BeginMainMenuBar()) {
-			if (ImGui::Button("Open")) {
-				auto f = pfd::open_file("Select your file: ");
-				model = Model(f.result()[0].c_str());
-			}
-			ImGui::EndMainMenuBar();
-		}	
-
-		
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 		glfwPollEvents();
