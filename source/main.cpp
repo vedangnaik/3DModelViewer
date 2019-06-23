@@ -24,9 +24,15 @@ glm::mat4 modelMatrix = glm::mat4(1.0f);
 float rotatingAngle = 5.0f; // degrees, set to preference
 float translationalOffset = 0.25f; // unitless, set to preference
 float scaleFactor = 0.05f;
-//	Window constants
-bool PBRWindowOpen = false;
-
+//	Texture handles
+unsigned int textureHandles[5];
+std::string textureNames[] = {
+	"albedoMap",
+	"normalMap",
+	"metallicMap",
+	"roughnessMap",
+	"aoMap"
+};
 
 // Callback function that controls movement of the model
 // TODO Maybe find a way to do it without glm::inverse()
@@ -113,6 +119,32 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 	}
 }
 
+// Helper function to create textures from filepaths
+unsigned int createTexture(const char* texturePath) {
+	unsigned int textureID;
+	int width, height, nrChannels;
+	glGenTextures(1, &textureID);
+	glBindTexture(GL_TEXTURE_2D, textureID);
+	unsigned char* data = stbi_load(texturePath, &width, &height, &nrChannels, 0);
+	if (data) {
+		GLenum format;
+		if (nrChannels == 3) format = GL_RGB;
+		else if (nrChannels == 4) format = GL_RGBA;
+		else if (nrChannels == 1) format = GL_RED;
+		else {
+			std::cout << "# channels: " << nrChannels << std::endl;
+		}
+
+		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+	}
+	else {
+		std::cout << "Failed to load texture" << std::endl;
+	}
+	stbi_image_free(data);
+	return textureID;
+}
+
 
 int main() {
 	// Initialize GLFW and GLAD
@@ -153,41 +185,22 @@ int main() {
 	};
 	glm::vec3 lightColor = glm::vec3(1.0f);
 	glm::vec3 cameraPosition = glm::vec3(0.0f, 0.0f, 10.0f);
-	// Albedo map handle
-	unsigned int albedoMap;
-
-	// Create albedo map
-	int width, height, nrChannels;
-	glGenTextures(1, &albedoMap);
-	glBindTexture(GL_TEXTURE_2D, albedoMap); 
-	unsigned char* data = stbi_load("defaultModel/layered-rock1-albedo.png", &width, &height, &nrChannels, 0);
-	if (data)
-	{
-		GLenum format;
-		if (nrChannels == 3) format = GL_RGB;
-		else if (nrChannels == 4) format = GL_RGBA;
-		else if (nrChannels == 1) format = GL_RED;
-		else {
-			std::cout << "# channels: " << nrChannels << std::endl;
-		}
-
-		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(GL_TEXTURE_2D);
-	}
-	else
-	{
-		std::cout << "Failed to load texture" << std::endl;
-	}
-	stbi_image_free(data);	
-
-
-	// Load model and shaders
-	glEnable(GL_DEPTH_TEST);
-	ShaderProgram mainSP = ShaderProgram("shaders/main.vs", "shaders/main.fs");
+	
+	// Load default  model and textures
 	Model model = Model("defaultModel/crate.3ds");
+	textureHandles[0] = createTexture("defaultModel/stone/stone-albedo.png");
+	textureHandles[1] = createTexture("defaultModel/stone/stone-normal-dx.png");
+	textureHandles[2] = createTexture("defaultModel/stone/stone-metalness.png");
+	textureHandles[3] = createTexture("defaultModel/stone/stone-rough.png");
+	textureHandles[4] = createTexture("defaultModel/stone/stone-ao.png");
+
+
+	// Load shaders
+	ShaderProgram mainSP = ShaderProgram("shaders/main.vs", "shaders/main.fs");
 
 
 	// Main render loop
+	glEnable(GL_DEPTH_TEST);
 	while (!glfwWindowShouldClose(window)) {
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -203,32 +216,26 @@ int main() {
 			}
 			if (ImGui::Button("Choose Albedo Map")) {
 				pfd::open_file f = pfd::open_file("Select albedo map");
-				glDeleteTextures(1, &albedoMap);
-				int width, height, nrChannels;
-				glGenTextures(1, &albedoMap);
-				glBindTexture(GL_TEXTURE_2D, albedoMap);
-				unsigned char* data = stbi_load(f.result()[0].c_str(), &width, &height, &nrChannels, 0);
-				if (data)
-				{
-					GLenum format;
-					if (nrChannels == 3) format = GL_RGB;
-					else if (nrChannels == 4) format = GL_RGBA;
-					else if (nrChannels == 1) format = GL_RED;
-					else {
-						std::cout << "# channels: " << nrChannels << std::endl;
-					}
-
-					glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-					glGenerateMipmap(GL_TEXTURE_2D);
-				}
-				else
-				{
-					std::cout << "Failed to load texture" << std::endl;
-				}
-				stbi_image_free(data);
+				textureHandles[0] = createTexture(f.result()[0].c_str());
+			}
+			if (ImGui::Button("Choose Normal Map")) {
+				pfd::open_file f = pfd::open_file("Select normal map");
+				textureHandles[1] = createTexture(f.result()[0].c_str());
+			}
+			if (ImGui::Button("Choose Metallic Map")) {
+				pfd::open_file f = pfd::open_file("Select metallic map");
+				textureHandles[2] = createTexture(f.result()[0].c_str());
+			}
+			if (ImGui::Button("Choose Roughness Map")) {
+				pfd::open_file f = pfd::open_file("Select roughness map");
+				textureHandles[3] = createTexture(f.result()[0].c_str());
+			}
+			if (ImGui::Button("Choose AO Map")) {
+				pfd::open_file f = pfd::open_file("Select AO map");
+				textureHandles[4] = createTexture(f.result()[0].c_str());
 			}
 			ImGui::EndMainMenuBar();
-		} 
+		}
 
 
 		// Set vertex shader uniforms
@@ -237,12 +244,13 @@ int main() {
 		mainSP.setUniformMat3("inverseModel", glm::mat3(glm::transpose(glm::inverse(modelMatrix))));
 		mainSP.setUniformMat4("view", viewMatrix);
 		mainSP.setUniformMat4("projection", projectionMatrix);
-
 		// Set fragment shader uniforms
-		//	Set albedo map
-		mainSP.setUniformInt("albedoMap", 0);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, albedoMap);
+		//	Set textures
+		for (int i = 0; i < 5; i++) {
+			mainSP.setUniformInt(textureNames[i].c_str(), i);
+			glActiveTexture(GL_TEXTURE0 + i);
+			glBindTexture(GL_TEXTURE_2D, textureHandles[i]);
+		}
 		//	Set light positions
 		for (int i = 0; i < 4; i++) {
 			std::string temp = "lightPositions[";
