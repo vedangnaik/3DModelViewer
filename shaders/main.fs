@@ -1,5 +1,12 @@
 #version 450 core
 
+struct PointLight {
+	vec3 position;
+	vec3 color;
+	float attConstant;
+	float attLinear;
+	float attQuadratic;
+};
 
 out vec4 fragmentColor;
 
@@ -13,8 +20,8 @@ uniform sampler2D metallicMap;
 uniform sampler2D roughnessMap;
 uniform sampler2D aoMap;
 
-uniform vec3 lightPositions[4];
-uniform vec3 lightColor;
+uniform PointLight pointLights[16];
+uniform int numPointLights;
 uniform vec3 cameraPosition;
 
 const float PI = 3.14159265359;
@@ -75,7 +82,6 @@ void main() {
 	float roughness = texture(roughnessMap, v2fTextureCoord.xy).r;
 	float ao = texture(aoMap, v2fTextureCoord.xy).r;
 
-
 	vec3 normal = getNormalFromMap();
 	vec3 viewingDirection = normalize(cameraPosition - v2fWorldFragmentPosition);
 
@@ -83,12 +89,12 @@ void main() {
 	F0 = mix(F0, albedo, metallic);
 
 	vec3 Lo = vec3(0.0);
-	for (int i = 0; i < 4; ++i) {
-		vec3 lightDirection = normalize(lightPositions[i] - v2fWorldFragmentPosition);
+	for (int i = 0; i < numPointLights; ++i) {
+		vec3 lightDirection = normalize(pointLights[i].position - v2fWorldFragmentPosition);
 		vec3 halfway = normalize(viewingDirection + lightDirection);
 		float lightDistance = length(lightDirection);
 		float attenuation = 1.0 / (lightDistance * lightDistance);
-		vec3 radiance = lightColor * attenuation;
+		vec3 radiance = pointLights[i].color * attenuation;
 
 		float D = TrowbridgeReitzNDF(normal, viewingDirection, roughness);
 		float G = SmithGeometry(normal, viewingDirection, lightDirection, roughness);

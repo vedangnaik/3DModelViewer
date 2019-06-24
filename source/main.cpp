@@ -2,13 +2,14 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 #include <portable-file-dialogs.h>
+#include <stb_image.h>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 #include <ShaderProgram.h>
 #include <Model.h>
-#include <stb_image.h>
+#include <Light.h>
 
 
 // Application constants
@@ -177,22 +178,20 @@ int main() {
 		100.0f
 	);
 	// Lighting
-	glm::vec3 lightPositions[] = {
-		glm::vec3(-10.0f, 10.0f, 0.0f),
+	std::vector<PointLight> pointLights;
+	pointLights.push_back(PointLight {
 		glm::vec3(10.0f, 10.0f, 0.0f),
-		glm::vec3(-10.0f, -10.0f, 0.0f),
-		glm::vec3(-10.0f, -10.0f, 0.0f)
-	};
-	glm::vec3 lightColor = glm::vec3(1.0f);
+		glm::vec3(1.0f)
+	});
 	glm::vec3 cameraPosition = glm::vec3(0.0f, 0.0f, 10.0f);
 	
 	// Load default  model and textures
-	Model model = Model("defaultModel/crate.3ds");
-	textureHandles[0] = createTexture("defaultModel/stone/stone-albedo.png");
-	textureHandles[1] = createTexture("defaultModel/stone/stone-normal-dx.png");
-	textureHandles[2] = createTexture("defaultModel/stone/stone-metalness.png");
-	textureHandles[3] = createTexture("defaultModel/stone/stone-rough.png");
-	textureHandles[4] = createTexture("defaultModel/stone/stone-ao.png");
+	Model model = Model("assets/crate.3ds");
+	textureHandles[0] = createTexture("assets/stone/stone-albedo.png");
+	textureHandles[1] = createTexture("assets/stone/stone-normal-dx.png");
+	textureHandles[2] = createTexture("assets/stone/stone-metalness.png");
+	textureHandles[3] = createTexture("assets/stone/stone-rough.png");
+	textureHandles[4] = createTexture("assets/stone/stone-ao.png");
 
 
 	// Load shaders
@@ -214,25 +213,38 @@ int main() {
 				pfd::open_file f = pfd::open_file("Select your file: ");
 				model = Model(f.result()[0].c_str());
 			}
-			if (ImGui::Button("Choose Albedo Map")) {
-				pfd::open_file f = pfd::open_file("Select albedo map");
-				textureHandles[0] = createTexture(f.result()[0].c_str());
+			if (ImGui::BeginMenu("Textures")) {				
+				if (ImGui::Button("Choose Albedo Map")) {
+					pfd::open_file f = pfd::open_file("Select albedo map");
+					textureHandles[0] = createTexture(f.result()[0].c_str());
+				}
+				if (ImGui::Button("Choose Normal Map")) {
+					pfd::open_file f = pfd::open_file("Select normal map");
+					textureHandles[1] = createTexture(f.result()[0].c_str());
+				}
+				if (ImGui::Button("Choose Metallic Map")) {
+					pfd::open_file f = pfd::open_file("Select metallic map");
+					textureHandles[2] = createTexture(f.result()[0].c_str());
+				}
+				if (ImGui::Button("Choose Roughness Map")) {
+					pfd::open_file f = pfd::open_file("Select roughness map");
+					textureHandles[3] = createTexture(f.result()[0].c_str());
+				}
+				if (ImGui::Button("Choose AO Map")) {
+					pfd::open_file f = pfd::open_file("Select AO map");
+					textureHandles[4] = createTexture(f.result()[0].c_str());
+				}
+				ImGui::EndMenu();
 			}
-			if (ImGui::Button("Choose Normal Map")) {
-				pfd::open_file f = pfd::open_file("Select normal map");
-				textureHandles[1] = createTexture(f.result()[0].c_str());
-			}
-			if (ImGui::Button("Choose Metallic Map")) {
-				pfd::open_file f = pfd::open_file("Select metallic map");
-				textureHandles[2] = createTexture(f.result()[0].c_str());
-			}
-			if (ImGui::Button("Choose Roughness Map")) {
-				pfd::open_file f = pfd::open_file("Select roughness map");
-				textureHandles[3] = createTexture(f.result()[0].c_str());
-			}
-			if (ImGui::Button("Choose AO Map")) {
-				pfd::open_file f = pfd::open_file("Select AO map");
-				textureHandles[4] = createTexture(f.result()[0].c_str());
+			if (ImGui::BeginMenu("Lighting")) {
+				for (int i = 0; i < pointLights.size(); i++) {
+					std::string temp = "Light ";
+					temp += std::to_string(i);
+					if (ImGui::Button(temp.c_str())) {
+
+					}
+				}
+				ImGui::EndMenu();
 			}
 			ImGui::EndMainMenuBar();
 		}
@@ -251,13 +263,18 @@ int main() {
 			glActiveTexture(GL_TEXTURE0 + i);
 			glBindTexture(GL_TEXTURE_2D, textureHandles[i]);
 		}
-		//	Set light positions
-		for (int i = 0; i < 4; i++) {
+		//	Set point lights and number of them
+		mainSP.setUniformInt("numPointLights", pointLights.size());
+		for (int i = 0; i < pointLights.size(); i++) {
 			std::string temp = "lightPositions[";
 			temp += std::to_string(i) + "]";
-			mainSP.setUniformVec3(temp.c_str(), lightPositions[i]);
+			mainSP.setUniformVec3((temp + ".position").c_str(), pointLights[i].position);
+			mainSP.setUniformVec3((temp + ".color").c_str(), pointLights[i].color);
+			mainSP.setUniformFloat((temp + ".attConstant").c_str(), pointLights[i].attConstant);
+			mainSP.setUniformFloat((temp + ".attLinear").c_str(), pointLights[i].attLinear);
+			mainSP.setUniformFloat((temp + ".attQuadratic").c_str(), pointLights[i].attQuadratic);
 		}
-		mainSP.setUniformVec3("lightColor", lightColor);
+		// Set camera position
 		mainSP.setUniformVec3("cameraPosition", cameraPosition);
 		// Draw model
 		model.draw();
