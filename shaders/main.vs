@@ -14,7 +14,7 @@ uniform mat4 view;
 uniform mat4 projection;
 
 void main() {
-	v2fNormal = mat3(model) * inNormal;
+	v2fNormal = inverseModel * inNormal;
 	v2fTextureCoord = inTextureCoord;
 	v2fWorldFragmentPosition = vec3(model * vec4(inPosition, 1.0));
 

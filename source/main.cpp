@@ -34,6 +34,9 @@ std::string textureNames[] = {
 	"roughnessMap",
 	"aoMap"
 };
+//	Light modification window parameters
+bool lightModificationWindowOpen = false;
+PointLight* lightToModify;
 
 // Callback function that controls movement of the model
 // TODO Maybe find a way to do it without glm::inverse()
@@ -179,16 +182,16 @@ int main() {
 	);
 	// Lighting
 	std::vector<PointLight> pointLights;
-	pointLights.push_back(PointLight {
+	pointLights.push_back(PointLight{
 		glm::vec3(10.0f, 10.0f, 0.0f),
-		glm::vec3(1.0f)
+		glm::vec3(1.0f, 0.5f, 0.31f)
 	});
 	glm::vec3 cameraPosition = glm::vec3(0.0f, 0.0f, 10.0f);
 	
 	// Load default  model and textures
 	Model model = Model("assets/crate.3ds");
 	textureHandles[0] = createTexture("assets/stone/stone-albedo.png");
-	textureHandles[1] = createTexture("assets/stone/stone-normal-dx.png");
+	textureHandles[1] = createTexture("assets/stone/stone-normal.png");
 	textureHandles[2] = createTexture("assets/stone/stone-metalness.png");
 	textureHandles[3] = createTexture("assets/stone/stone-rough.png");
 	textureHandles[4] = createTexture("assets/stone/stone-ao.png");
@@ -241,14 +244,27 @@ int main() {
 					std::string temp = "Light ";
 					temp += std::to_string(i);
 					if (ImGui::Button(temp.c_str())) {
-
+						lightModificationWindowOpen = true;
+						lightToModify = &pointLights[i];
 					}
 				}
 				ImGui::EndMenu();
 			}
+			if (ImGui::Button("Reset")) {
+				modelMatrix = glm::mat4(1.0f);
+			}
 			ImGui::EndMainMenuBar();
 		}
 
+		if (lightModificationWindowOpen) {
+			ImGui::Begin("Modifying light", &lightModificationWindowOpen, ImGuiWindowFlags_AlwaysAutoResize);
+			ImGui::Text("Position");
+			ImGui::InputFloat("x", &lightToModify->position.x, 0.1f, 1.0f);
+			ImGui::InputFloat("y", &lightToModify->position.y, 0.1f, 1.0f);
+			ImGui::InputFloat("z", &lightToModify->position.z, 0.1f, 1.0f);
+			ImGui::Separator();
+			ImGui::End();
+		}
 
 		// Set vertex shader uniforms
 		mainSP.use();
@@ -266,7 +282,7 @@ int main() {
 		//	Set point lights and number of them
 		mainSP.setUniformInt("numPointLights", pointLights.size());
 		for (int i = 0; i < pointLights.size(); i++) {
-			std::string temp = "lightPositions[";
+			std::string temp = "pointLights[";
 			temp += std::to_string(i) + "]";
 			mainSP.setUniformVec3((temp + ".position").c_str(), pointLights[i].position);
 			mainSP.setUniformVec3((temp + ".color").c_str(), pointLights[i].color);
