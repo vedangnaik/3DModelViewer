@@ -182,14 +182,16 @@ int main() {
 		0.1f,
 		100.0f
 	);
+
 	// Lighting
 	std::vector<PointLight> pointLights;
 	pointLights.push_back(PointLight{
 		glm::vec3(10.0f, 10.0f, 0.0f),
-		glm::vec3(1.0f, 0.5f, 0.31f)
+		glm::vec3(100.0f, 50.0f, 31.0f)
 	});
 	glm::vec3 cameraPosition = glm::vec3(0.0f, 0.0f, 10.0f);
-	
+
+
 	// Load default  model and textures
 	Model model = Model("assets/crate.3ds");
 	textureHandles[0] = createTexture("assets/stone/stone-albedo.png");
@@ -280,6 +282,15 @@ int main() {
 			ImGui::InputFloat("attConstant", &lightToModify->attConstant, 0.1f, 1.0f);
 			ImGui::InputFloat("attLinear", &lightToModify->attLinear, 0.1f, 1.0f);
 			ImGui::InputFloat("attQuadratic", &lightToModify->attQuadratic, 0.1f, 1.0f);
+			ImGui::Separator();
+			if (ImGui::Button("Delete")) {
+				for (int i = 0; i < pointLights.size(); i++) {
+					if (pointLights[i] == *lightToModify) {
+						pointLights.erase(pointLights.begin() + i);
+						break;
+					}
+				}
+			}
 			ImGui::End();
 		}
 		// Keep the light creation window open
@@ -306,6 +317,7 @@ int main() {
 			}
 			ImGui::End();
 		}
+
 
 		// Set vertex shader uniforms
 		mainSP.use();
