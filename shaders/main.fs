@@ -7,6 +7,10 @@ struct PointLight {
 	float attLinear;
 	float attQuadratic;
 };
+struct DirectionalLight {
+	vec3 direction;
+	vec3 color;
+};
 
 out vec4 fragmentColor;
 
@@ -22,6 +26,7 @@ uniform sampler2D aoMap;
 
 uniform PointLight pointLights[16];
 uniform int numPointLights;
+uniform DirectionalLight dirLight;
 uniform vec3 cameraPosition;
 
 const float PI = 3.14159265359;
@@ -75,8 +80,7 @@ vec3 FresnelSchlick(float cosine, vec3 F0) {
 	return F0 + (1.0 - F0) * pow(1.0 - cosine, 5.0);
 }
 
-
-void main() {
+vec3 pointLightsContribution() {
 	vec3 albedo = pow(texture(albedoMap, v2fTextureCoord.xy).rgb, vec3(2.2));
 	float metallic = texture(metallicMap, v2fTextureCoord.xy).r;
 	float roughness = texture(roughnessMap, v2fTextureCoord.xy).r;
@@ -121,6 +125,49 @@ void main() {
 	vec3 color = ambient + Lo;
 	color = color / (color + vec3(1.0));
 	color = pow(color, vec3(1.0/2.2));
+	return color;
+}
 
+vec3 directionalLightContribution() {
+	vec3 albedo = pow(texture(albedoMap, v2fTextureCoord.xy).rgb, vec3(2.2));
+	float metallic = texture(metallicMap, v2fTextureCoord.xy).r;
+	float roughness = texture(roughnessMap, v2fTextureCoord.xy).r;
+	float ao = texture(aoMap, v2fTextureCoord.xy).r;
+
+	vec3 normal = getNormalFromMap();
+	vec3 viewingDirection = normalize(cameraPosition - v2fWorldFragmentPosition);
+
+	vec3 F0 = vec3(0.04);
+	F0 = mix(F0, albedo, metallic);
+
+
+	vec3 lightDirection = normalize(-dirLight.direction);
+	vec3 halfway = normalize(viewingDirection + lightDirection);
+	vec3 radiance = dirLight.color;
+
+	float D = TrowbridgeReitzNDF(normal, viewingDirection, roughness);
+	float G = SmithGeometry(normal, viewingDirection, lightDirection, roughness);
+	vec3 F = FresnelSchlick(clamp(dot(halfway, viewingDirection), 0.0, 1.0), F0);
+
+	vec3 nom = D * G * F;
+	float denom = 4 * max(dot(normal, viewingDirection), 0.0) * max(dot(normal, lightDirection), 0.0);
+	vec3 specular = nom / max(denom, 0.001);
+
+	vec3 kS = F;
+	vec3 kD = vec3(1.0) - kS;
+	kD *= (1.0 - metallic);
+	float NdotL = max(dot(normal, lightDirection), 0.0);
+	vec3 Lo = (kD * albedo / PI + specular) * radiance * NdotL;
+
+
+	vec3 ambient = vec3(0.03) *	ao * albedo;
+	vec3 color = ambient + Lo;
+	color = color / (color + vec3(1.0));
+	color = pow(color, vec3(1.0/2.2));
+	return color;
+}
+
+void main() {
+	vec3 color = pointLightsContribution() + directionalLightContribution();
 	fragmentColor = vec4(color, 1.0);
 }

@@ -34,11 +34,13 @@ std::string textureNames[] = {
 	"roughnessMap",
 	"aoMap"
 };
-//	Light modification window parameters
-bool lightModificationWindowOpen = false;
-PointLight* lightToModify;
-//	Light creation window parameters
-bool lightCreationWindowOpen = false;
+//	Point light modification and creation window parameters
+bool pointLightCreateWinOpen = false;
+bool pointLightModWinOpen = false;
+PointLight* pointLightToMod;
+//	Directional light modification window parameters
+bool dirLightModWinOpen = false;
+
 
 // Callback function that controls movement of the model
 // TODO Maybe find a way to do it without glm::inverse()
@@ -152,6 +154,7 @@ unsigned int createTexture(const char* texturePath) {
 }
 
 
+// Main program
 int main() {
 	// Initialize GLFW and GLAD
 	glfwInit();
@@ -176,6 +179,7 @@ int main() {
 		glm::vec3(0.0f),
 		glm::vec3(0.0f, 1.0f, 0.0f)
 	);
+	glm::vec3 cameraPosition = glm::vec3(0.0f, 0.0f, 10.0f);
 	glm::mat4 projectionMatrix = glm::perspective(
 		glm::radians(45.0f),
 		ASP_RATIO,
@@ -186,11 +190,13 @@ int main() {
 	// Lighting
 	std::vector<PointLight> pointLights;
 	pointLights.push_back(PointLight{
-		glm::vec3(10.0f, 10.0f, 0.0f),
-		glm::vec3(100.0f, 50.0f, 31.0f)
+		glm::vec3(-10.0f, 10.0f, 10.0f),
+		glm::vec3(100.0f, 100.0f, 100.0f)
 	});
-	glm::vec3 cameraPosition = glm::vec3(0.0f, 0.0f, 10.0f);
-
+	DirectionalLight dirLight = DirectionalLight{
+		glm::vec3(-10.0f, -10.0f, 0.0f),
+		glm::vec3(100.0f, 50.0f, 31.0f)
+	};
 
 	// Load default  model and textures
 	Model model = Model("assets/crate.3ds");
@@ -245,18 +251,24 @@ int main() {
 				ImGui::EndMenu();
 			}
 			if (ImGui::BeginMenu("Lighting")) {
-				if (ImGui::Button("Add Light")) {
-					lightCreationWindowOpen = true;
-				}
-				ImGui::Separator();
-				for (int i = 0; i < pointLights.size(); i++) {
-					std::string temp = "Light ";
-					temp += std::to_string(i);
-					if (ImGui::MenuItem(temp.c_str())) {
-						// Sets these global variables so that they can be modified
-						lightModificationWindowOpen = true;
-						lightToModify = &pointLights[i];
+				if (ImGui::BeginMenu("Point Lights")) {
+					if (ImGui::Button("Add Light")) {
+						pointLightCreateWinOpen = true;
 					}
+					ImGui::Separator();
+					for (int i = 0; i < pointLights.size(); i++) {
+						std::string temp = "Light ";
+						temp += std::to_string(i);
+						if (ImGui::MenuItem(temp.c_str())) {
+							// Sets these global variables so that they can be modified
+							pointLightModWinOpen = true;
+							pointLightToMod = &pointLights[i];
+						}
+					}
+					ImGui::EndMenu();
+				}
+				if (ImGui::MenuItem("Directional Light")) {
+					dirLightModWinOpen = true;
 				}
 				ImGui::EndMenu();
 			}
@@ -265,27 +277,27 @@ int main() {
 			}
 			ImGui::EndMainMenuBar();
 		}
-		// Keep the light modification window open and modify lightToModify
-		if (lightModificationWindowOpen) {
-			ImGui::Begin("Modifying light", &lightModificationWindowOpen, ImGuiWindowFlags_AlwaysAutoResize);
+		// Keep the point light modification and creation windows open and modify pointLightToMod
+		if (pointLightModWinOpen) {
+			ImGui::Begin("Modifying point light", &pointLightModWinOpen, ImGuiWindowFlags_AlwaysAutoResize);
 			ImGui::Text("Position");
-			ImGui::InputFloat("x", &lightToModify->position.x, 0.1f, 1.0f);
-			ImGui::InputFloat("y", &lightToModify->position.y, 0.1f, 1.0f);
-			ImGui::InputFloat("z", &lightToModify->position.z, 0.1f, 1.0f);
+			ImGui::InputFloat("x", &pointLightToMod->position.x, 0.1f, 1.0f);
+			ImGui::InputFloat("y", &pointLightToMod->position.y, 0.1f, 1.0f);
+			ImGui::InputFloat("z", &pointLightToMod->position.z, 0.1f, 1.0f);
 			ImGui::Separator();
 			ImGui::Text("Color");
-			ImGui::InputFloat("r", &lightToModify->color.r, 0.1f, 1.0f);
-			ImGui::InputFloat("g", &lightToModify->color.g, 0.1f, 1.0f);
-			ImGui::InputFloat("b", &lightToModify->color.b, 0.1f, 1.0f);
+			ImGui::InputFloat("r", &pointLightToMod->color.r, 0.1f, 1.0f);
+			ImGui::InputFloat("g", &pointLightToMod->color.g, 0.1f, 1.0f);
+			ImGui::InputFloat("b", &pointLightToMod->color.b, 0.1f, 1.0f);
 			ImGui::Separator();
 			ImGui::Text("Attenuation");
-			ImGui::InputFloat("attConstant", &lightToModify->attConstant, 0.1f, 1.0f);
-			ImGui::InputFloat("attLinear", &lightToModify->attLinear, 0.1f, 1.0f);
-			ImGui::InputFloat("attQuadratic", &lightToModify->attQuadratic, 0.1f, 1.0f);
+			ImGui::InputFloat("attConstant", &pointLightToMod->attConstant, 0.1f, 1.0f);
+			ImGui::InputFloat("attLinear", &pointLightToMod->attLinear, 0.1f, 1.0f);
+			ImGui::InputFloat("attQuadratic", &pointLightToMod->attQuadratic, 0.1f, 1.0f);
 			ImGui::Separator();
 			if (ImGui::Button("Delete")) {
 				for (int i = 0; i < pointLights.size(); i++) {
-					if (pointLights[i] == *lightToModify) {
+					if (pointLights[i] == *pointLightToMod) {
 						pointLights.erase(pointLights.begin() + i);
 						break;
 					}
@@ -293,10 +305,9 @@ int main() {
 			}
 			ImGui::End();
 		}
-		// Keep the light creation window open
-		if (lightCreationWindowOpen) {
+		if (pointLightCreateWinOpen) {
 			PointLight toAdd;
-			ImGui::Begin("Adding Light", &lightCreationWindowOpen, ImGuiWindowFlags_AlwaysAutoResize);
+			ImGui::Begin("Adding Light", &pointLightCreateWinOpen, ImGuiWindowFlags_AlwaysAutoResize);
 			ImGui::Text("Position");
 			ImGui::InputFloat("x", &toAdd.position.x, 0.1f, 1.0f);
 			ImGui::InputFloat("y", &toAdd.position.y, 0.1f, 1.0f);
@@ -315,6 +326,20 @@ int main() {
 			if (ImGui::Button("Add")) {
 				pointLights.push_back(toAdd);
 			}
+			ImGui::End();
+		}
+		// Keep the directional light modification window open and modify dirLight
+		if (dirLightModWinOpen) {
+			ImGui::Begin("Modifying directional light", &dirLightModWinOpen, ImGuiWindowFlags_AlwaysAutoResize);
+			ImGui::Text("Position");
+			ImGui::InputFloat("x", &dirLight.direction.x, 0.1f, 1.0f);
+			ImGui::InputFloat("y", &dirLight.direction.y, 0.1f, 1.0f);
+			ImGui::InputFloat("z", &dirLight.direction.z, 0.1f, 1.0f);
+			ImGui::Separator();
+			ImGui::Text("Color");
+			ImGui::InputFloat("r", &dirLight.color.r, 0.1f, 1.0f);
+			ImGui::InputFloat("g", &dirLight.color.g, 0.1f, 1.0f);
+			ImGui::InputFloat("b", &dirLight.color.b, 0.1f, 1.0f);
 			ImGui::End();
 		}
 
@@ -343,6 +368,9 @@ int main() {
 			mainSP.setUniformFloat((temp + ".attLinear").c_str(), pointLights[i].attLinear);
 			mainSP.setUniformFloat((temp + ".attQuadratic").c_str(), pointLights[i].attQuadratic);
 		}
+		// Set directional light
+		mainSP.setUniformVec3("dirLight.direction", dirLight.direction);
+		mainSP.setUniformVec3("dirLight.color", dirLight.color);
 		// Set camera position
 		mainSP.setUniformVec3("cameraPosition", cameraPosition);
 		// Draw model
