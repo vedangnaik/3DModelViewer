@@ -92,8 +92,12 @@ void main() {
 	for (int i = 0; i < numPointLights; ++i) {
 		vec3 lightDirection = normalize(pointLights[i].position - v2fWorldFragmentPosition);
 		vec3 halfway = normalize(viewingDirection + lightDirection);
-		float lightDistance = length(lightDirection);
-		float attenuation = 1.0 / (lightDistance * lightDistance);
+		float lightDistance = length(pointLights[i].position - v2fWorldFragmentPosition);
+		float attenuation = 1.0 / (
+			pointLights[i].attConstant + 
+			(pointLights[i].attLinear * lightDistance) +
+			(pointLights[i].attQuadratic * lightDistance * lightDistance)
+		);
 		vec3 radiance = pointLights[i].color * attenuation;
 
 		float D = TrowbridgeReitzNDF(normal, viewingDirection, roughness);

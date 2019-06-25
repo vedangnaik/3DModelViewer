@@ -37,6 +37,8 @@ std::string textureNames[] = {
 //	Light modification window parameters
 bool lightModificationWindowOpen = false;
 PointLight* lightToModify;
+//	Light creation window parameters
+bool lightCreationWindowOpen = false;
 
 // Callback function that controls movement of the model
 // TODO Maybe find a way to do it without glm::inverse()
@@ -211,6 +213,7 @@ int main() {
 		ImGui::NewFrame();
 
 
+		// Main Menubar declaration
 		if (ImGui::BeginMainMenuBar()) {
 			if (ImGui::Button("Open Model")) {
 				pfd::open_file f = pfd::open_file("Select your file: ");
@@ -240,10 +243,15 @@ int main() {
 				ImGui::EndMenu();
 			}
 			if (ImGui::BeginMenu("Lighting")) {
+				if (ImGui::Button("Add Light")) {
+					lightCreationWindowOpen = true;
+				}
+				ImGui::Separator();
 				for (int i = 0; i < pointLights.size(); i++) {
 					std::string temp = "Light ";
 					temp += std::to_string(i);
-					if (ImGui::Button(temp.c_str())) {
+					if (ImGui::MenuItem(temp.c_str())) {
+						// Sets these global variables so that they can be modified
 						lightModificationWindowOpen = true;
 						lightToModify = &pointLights[i];
 					}
@@ -255,7 +263,7 @@ int main() {
 			}
 			ImGui::EndMainMenuBar();
 		}
-
+		// Keep the light modification window open and modify lightToModify
 		if (lightModificationWindowOpen) {
 			ImGui::Begin("Modifying light", &lightModificationWindowOpen, ImGuiWindowFlags_AlwaysAutoResize);
 			ImGui::Text("Position");
@@ -263,6 +271,39 @@ int main() {
 			ImGui::InputFloat("y", &lightToModify->position.y, 0.1f, 1.0f);
 			ImGui::InputFloat("z", &lightToModify->position.z, 0.1f, 1.0f);
 			ImGui::Separator();
+			ImGui::Text("Color");
+			ImGui::InputFloat("r", &lightToModify->color.r, 0.1f, 1.0f);
+			ImGui::InputFloat("g", &lightToModify->color.g, 0.1f, 1.0f);
+			ImGui::InputFloat("b", &lightToModify->color.b, 0.1f, 1.0f);
+			ImGui::Separator();
+			ImGui::Text("Attenuation");
+			ImGui::InputFloat("attConstant", &lightToModify->attConstant, 0.1f, 1.0f);
+			ImGui::InputFloat("attLinear", &lightToModify->attLinear, 0.1f, 1.0f);
+			ImGui::InputFloat("attQuadratic", &lightToModify->attQuadratic, 0.1f, 1.0f);
+			ImGui::End();
+		}
+		// Keep the light creation window open
+		if (lightCreationWindowOpen) {
+			PointLight toAdd;
+			ImGui::Begin("Adding Light", &lightCreationWindowOpen, ImGuiWindowFlags_AlwaysAutoResize);
+			ImGui::Text("Position");
+			ImGui::InputFloat("x", &toAdd.position.x, 0.1f, 1.0f);
+			ImGui::InputFloat("y", &toAdd.position.y, 0.1f, 1.0f);
+			ImGui::InputFloat("z", &toAdd.position.z, 0.1f, 1.0f);
+			ImGui::Separator();
+			ImGui::Text("Color");
+			ImGui::InputFloat("r", &toAdd.color.r, 0.1f, 1.0f);
+			ImGui::InputFloat("g", &toAdd.color.g, 0.1f, 1.0f);
+			ImGui::InputFloat("b", &toAdd.color.b, 0.1f, 1.0f);
+			ImGui::Separator();
+			ImGui::Text("Attenuation");
+			ImGui::InputFloat("attConstant", &toAdd.attConstant, 0.1f, 1.0f);
+			ImGui::InputFloat("attLinear", &toAdd.attLinear, 0.1f, 1.0f);
+			ImGui::InputFloat("attQuadratic", &toAdd.attQuadratic, 0.1f, 1.0f);
+			ImGui::Separator();
+			if (ImGui::Button("Add")) {
+				pointLights.push_back(toAdd);
+			}
 			ImGui::End();
 		}
 
