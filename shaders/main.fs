@@ -14,7 +14,8 @@ struct DirectionalLight {
 struct SpotLight {
 	vec3 position;
 	vec3 direction;
-	float cosineCutoff;
+	float cosineInnerCutoff;
+	float cosineOuterCutoff;
 	vec3 color;
 };
 
@@ -192,28 +193,28 @@ vec3 spotLightsContribution() {
 	vec3 Lo = vec3(0.0);
 	for (int i = 0; i < numSpotLights; ++i) {
 		vec3 lightDirection = normalize(spotLights[i].position - v2fWorldFragmentPosition);
-		if (dot(lightDirection, normalize(-spotLights[i].direction)) > spotLights[i].cosineCutoff) {
-			vec3 halfway = normalize(viewingDirection + lightDirection);
-			vec3 radiance = spotLights[i].color;
+		float theta = dot(lightDirection, normalize(-spotLights[i].direction));
+		float epsilon = spotLights[i].cosineInnerCutoff - spotLights[i].cosineOuterCutoff;
+		float intensity = clamp((theta - spotLights[i].cosineOuterCutoff) / epsilon, 0.0, 1.0);
 
-			float D = TrowbridgeReitzNDF(normal, viewingDirection, roughness);
-			float G = SmithGeometry(normal, viewingDirection, lightDirection, roughness);
-			vec3 F = FresnelSchlick(clamp(dot(halfway, viewingDirection), 0.0, 1.0), F0);
+		vec3 halfway = normalize(viewingDirection + lightDirection);
+		vec3 radiance = spotLights[i].color * intensity;
 
-			vec3 nom = D * G * F;
-			float denom = 4 * max(dot(normal, viewingDirection), 0.0) * max(dot(normal, lightDirection), 0.0);
-			vec3 specular = nom / max(denom, 0.001);
+		float D = TrowbridgeReitzNDF(normal, viewingDirection, roughness);
+		float G = SmithGeometry(normal, viewingDirection, lightDirection, roughness);
+		vec3 F = FresnelSchlick(clamp(dot(halfway, viewingDirection), 0.0, 1.0), F0);
 
-			vec3 kS = F;
-			vec3 kD = vec3(1.0) - kS;
-			kD *= (1.0 - metallic);
+		vec3 nom = D * G * F;
+		float denom = 4 * max(dot(normal, viewingDirection), 0.0) * max(dot(normal, lightDirection), 0.0);
+		vec3 specular = nom / max(denom, 0.001);
 
-			float NdotL = max(dot(normal, lightDirection), 0.0);
+		vec3 kS = F;
+		vec3 kD = vec3(1.0) - kS;
+		kD *= (1.0 - metallic);
 
-			Lo += (kD * albedo / PI + specular) * radiance * NdotL;
-		} else {
-			Lo += vec3(0.0);
-		}		
+		float NdotL = max(dot(normal, lightDirection), 0.0);
+
+		Lo += (kD * albedo / PI + specular) * radiance * NdotL;
 	}
 	 
 	vec3 ambient = vec3(0.03) *	ao * albedo;
@@ -224,6 +225,6 @@ vec3 spotLightsContribution() {
 }
 
 void main() {
-	vec3 color = pointLightsContribution() + directionalLightContribution() + spotLightsContribution();
+	vec3 color = spotLightsContribution();
 	fragmentColor = vec4(color, 1.0);
 }

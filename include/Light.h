@@ -33,6 +33,7 @@ struct DirectionalLight {
 struct SpotLight {
 	glm::vec3 position;
 	glm::vec3 direction;
-	float cosineCutoff;
+	float cosineInnerCutoff;
+	float cosineOuterCutoff;
 	glm::vec3 color;
 };

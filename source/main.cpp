@@ -40,6 +40,10 @@ bool pointLightModWinOpen = false;
 PointLight* pointLightToMod;
 //	Directional light modification window parameters
 bool dirLightModWinOpen = false;
+//	Spotlight modification and creation window parameters
+bool spotlightCreateWinOpen = false;
+bool spotlightModWinOpen = false;
+SpotLight* spotlightToMod;
 
 
 // Callback function that controls movement of the model
@@ -197,11 +201,12 @@ int main() {
 		glm::vec3(-10.0f, -10.0f, 0.0f),
 		glm::vec3(100.0f, 50.0f, 31.0f)
 	};
-	std::vector<SpotLight> spotLights;
-	spotLights.push_back(SpotLight{
+	std::vector<SpotLight> spotlights;
+	spotlights.push_back(SpotLight{
 		glm::vec3(0.0f, 0.0f, 10.0f),
 		glm::vec3(0.0f, 0.0f, -1.0f),
-		cos(glm::radians(12.5f)),
+		glm::cos(glm::radians(10.0f)),
+		glm::cos(glm::radians(20.0f)),
 		glm::vec3(100.0f, 50.0f, 31.0f)
 	});
 
@@ -259,12 +264,12 @@ int main() {
 			}
 			if (ImGui::BeginMenu("Lighting")) {
 				if (ImGui::BeginMenu("Point Lights")) {
-					if (ImGui::Button("Add Light")) {
+					if (ImGui::Button("Add Point Light")) {
 						pointLightCreateWinOpen = true;
 					}
 					ImGui::Separator();
 					for (int i = 0; i < pointLights.size(); i++) {
-						std::string temp = "Light ";
+						std::string temp = "Point Light ";
 						temp += std::to_string(i);
 						if (ImGui::MenuItem(temp.c_str())) {
 							// Sets these global variables so that they can be modified
@@ -277,6 +282,22 @@ int main() {
 				if (ImGui::MenuItem("Directional Light")) {
 					dirLightModWinOpen = true;
 				}
+				if (ImGui::BeginMenu("Spotlights")) {
+					if (ImGui::Button("Add Spotlight")) {
+						spotlightCreateWinOpen = true;
+					}
+					ImGui::Separator();
+					for (int i = 0; i < spotlights.size(); i++) {
+						std::string temp = "Spotlight ";
+						temp += std::to_string(i);
+						if (ImGui::MenuItem(temp.c_str())) {
+							// Sets these global variables so that they can be modified
+							spotlightModWinOpen = true;
+							spotlightToMod = &spotlights[i];
+						}
+					}
+					ImGui::EndMenu();
+				}
 				ImGui::EndMenu();
 			}
 			if (ImGui::Button("Reset")) {
@@ -287,21 +308,25 @@ int main() {
 		// Keep the point light modification and creation windows open and modify pointLightToMod
 		if (pointLightModWinOpen) {
 			ImGui::Begin("Modifying point light", &pointLightModWinOpen, ImGuiWindowFlags_AlwaysAutoResize);
+			
 			ImGui::Text("Position");
-			ImGui::InputFloat("x", &pointLightToMod->position.x, 0.1f, 1.0f);
-			ImGui::InputFloat("y", &pointLightToMod->position.y, 0.1f, 1.0f);
-			ImGui::InputFloat("z", &pointLightToMod->position.z, 0.1f, 1.0f);
+			ImGui::InputFloat("x", &pointLightToMod->position.x);
+			ImGui::InputFloat("y", &pointLightToMod->position.y);
+			ImGui::InputFloat("z", &pointLightToMod->position.z);
 			ImGui::Separator();
+			
 			ImGui::Text("Color");
-			ImGui::InputFloat("r", &pointLightToMod->color.r, 0.1f, 1.0f);
-			ImGui::InputFloat("g", &pointLightToMod->color.g, 0.1f, 1.0f);
-			ImGui::InputFloat("b", &pointLightToMod->color.b, 0.1f, 1.0f);
+			ImGui::InputFloat("r", &pointLightToMod->color.r);
+			ImGui::InputFloat("g", &pointLightToMod->color.g);
+			ImGui::InputFloat("b", &pointLightToMod->color.b);
 			ImGui::Separator();
+			
 			ImGui::Text("Attenuation");
-			ImGui::InputFloat("attConstant", &pointLightToMod->attConstant, 0.1f, 1.0f);
-			ImGui::InputFloat("attLinear", &pointLightToMod->attLinear, 0.1f, 1.0f);
-			ImGui::InputFloat("attQuadratic", &pointLightToMod->attQuadratic, 0.1f, 1.0f);
+			ImGui::InputFloat("attConstant", &pointLightToMod->attConstant);
+			ImGui::InputFloat("attLinear", &pointLightToMod->attLinear);
+			ImGui::InputFloat("attQuadratic", &pointLightToMod->attQuadratic);
 			ImGui::Separator();
+			
 			if (ImGui::Button("Delete")) {
 				for (int i = 0; i < pointLights.size(); i++) {
 					if (pointLights[i] == *pointLightToMod) {
@@ -310,46 +335,121 @@ int main() {
 					}
 				}
 			}
+
 			ImGui::End();
 		}
 		if (pointLightCreateWinOpen) {
 			PointLight toAdd;
 			ImGui::Begin("Adding Light", &pointLightCreateWinOpen, ImGuiWindowFlags_AlwaysAutoResize);
+			
 			ImGui::Text("Position");
-			ImGui::InputFloat("x", &toAdd.position.x, 0.1f, 1.0f);
-			ImGui::InputFloat("y", &toAdd.position.y, 0.1f, 1.0f);
-			ImGui::InputFloat("z", &toAdd.position.z, 0.1f, 1.0f);
+			ImGui::InputFloat("x", &toAdd.position.x);
+			ImGui::InputFloat("y", &toAdd.position.y);
+			ImGui::InputFloat("z", &toAdd.position.z);
 			ImGui::Separator();
+			
 			ImGui::Text("Color");
-			ImGui::InputFloat("r", &toAdd.color.r, 0.1f, 1.0f);
-			ImGui::InputFloat("g", &toAdd.color.g, 0.1f, 1.0f);
-			ImGui::InputFloat("b", &toAdd.color.b, 0.1f, 1.0f);
+			ImGui::InputFloat("r", &toAdd.color.r);
+			ImGui::InputFloat("g", &toAdd.color.g);
+			ImGui::InputFloat("b", &toAdd.color.b);
 			ImGui::Separator();
+			
 			ImGui::Text("Attenuation");
-			ImGui::InputFloat("attConstant", &toAdd.attConstant, 0.1f, 1.0f);
-			ImGui::InputFloat("attLinear", &toAdd.attLinear, 0.1f, 1.0f);
-			ImGui::InputFloat("attQuadratic", &toAdd.attQuadratic, 0.1f, 1.0f);
+			ImGui::InputFloat("attConstant", &toAdd.attConstant);
+			ImGui::InputFloat("attLinear", &toAdd.attLinear);
+			ImGui::InputFloat("attQuadratic", &toAdd.attQuadratic);
 			ImGui::Separator();
+			
 			if (ImGui::Button("Add")) {
 				pointLights.push_back(toAdd);
 			}
+			
 			ImGui::End();
 		}
 		// Keep the directional light modification window open and modify dirLight
 		if (dirLightModWinOpen) {
 			ImGui::Begin("Modifying directional light", &dirLightModWinOpen, ImGuiWindowFlags_AlwaysAutoResize);
+			
 			ImGui::Text("Position");
-			ImGui::InputFloat("x", &dirLight.direction.x, 0.1f, 1.0f);
-			ImGui::InputFloat("y", &dirLight.direction.y, 0.1f, 1.0f);
-			ImGui::InputFloat("z", &dirLight.direction.z, 0.1f, 1.0f);
+			ImGui::InputFloat("x", &dirLight.direction.x);
+			ImGui::InputFloat("y", &dirLight.direction.y);
+			ImGui::InputFloat("z", &dirLight.direction.z);
 			ImGui::Separator();
+			
 			ImGui::Text("Color");
-			ImGui::InputFloat("r", &dirLight.color.r, 0.1f, 1.0f);
-			ImGui::InputFloat("g", &dirLight.color.g, 0.1f, 1.0f);
-			ImGui::InputFloat("b", &dirLight.color.b, 0.1f, 1.0f);
+			ImGui::InputFloat("r", &dirLight.color.r);
+			ImGui::InputFloat("g", &dirLight.color.g);
+			ImGui::InputFloat("b", &dirLight.color.b);
+			
 			ImGui::End();
 		}
+		// Keep the spotlight modification and creation windows open and modify spotlightToMod
+		if (spotlightModWinOpen) {
+			ImGui::Begin("Modifying spotlight", &spotlightModWinOpen, ImGuiWindowFlags_AlwaysAutoResize);
+			
+			ImGui::Text("Position");
+			ImGui::InputFloat("x", &spotlightToMod->position.x);
+			ImGui::InputFloat("y", &spotlightToMod->position.y);
+			ImGui::InputFloat("z", &spotlightToMod->position.z);
+			ImGui::Separator();
 
+			ImGui::Text("Direction");
+			ImGui::InputFloat("x ", &spotlightToMod->direction.x);
+			ImGui::InputFloat("y ", &spotlightToMod->direction.y);
+			ImGui::InputFloat("z ", &spotlightToMod->direction.z);
+			ImGui::Separator();
+
+			ImGui::Text("Color");
+			ImGui::InputFloat("r", &spotlightToMod->color.r);
+			ImGui::InputFloat("g", &spotlightToMod->color.g);
+			ImGui::InputFloat("b", &spotlightToMod->color.b);
+			ImGui::Separator();
+
+			ImGui::Text("Cutoffs");
+			float tempInnerCutoff, tempOuterCutoff;
+			ImGui::InputFloat("Inner cutoff", &tempInnerCutoff);
+			spotlightToMod->cosineInnerCutoff = cos(glm::radians(tempInnerCutoff));
+			ImGui::InputFloat("Outer cutoff", &tempOuterCutoff);
+			spotlightToMod->cosineOuterCutoff = cos(glm::radians(tempOuterCutoff));
+
+			ImGui::End();
+		}
+		if (spotlightCreateWinOpen) {
+			SpotLight toAdd;
+			ImGui::Begin("Modifying spotlight", &spotlightCreateWinOpen, ImGuiWindowFlags_AlwaysAutoResize);
+
+			ImGui::Text("Position");
+			ImGui::InputFloat("x", &toAdd.position.x);
+			ImGui::InputFloat("y", &toAdd.position.y);
+			ImGui::InputFloat("z", &toAdd.position.z);
+			ImGui::Separator();
+
+			ImGui::Text("Direction");
+			ImGui::InputFloat("x ", &toAdd.direction.x);
+			ImGui::InputFloat("y ", &toAdd.direction.y);
+			ImGui::InputFloat("z ", &toAdd.direction.z);
+			ImGui::Separator();
+
+			ImGui::Text("Color");
+			ImGui::InputFloat("r", &toAdd.color.r);
+			ImGui::InputFloat("g", &toAdd.color.g);
+			ImGui::InputFloat("b", &toAdd.color.b);
+			ImGui::Separator();
+
+			ImGui::Text("Cutoffs");
+			float tempInnerCutoff, tempOuterCutoff;
+			ImGui::InputFloat("Inner cutoff", &tempInnerCutoff);
+			toAdd.cosineInnerCutoff = cos(glm::radians(tempInnerCutoff));
+			ImGui::InputFloat("Outer cutoff", &tempOuterCutoff);
+			toAdd.cosineOuterCutoff = cos(glm::radians(tempOuterCutoff));
+			ImGui::Separator();
+
+			if (ImGui::Button("Add")) {
+				spotlights.push_back(toAdd);
+			}
+
+			ImGui::End();
+		}
 
 		// Set vertex shader uniforms
 		mainSP.use();
@@ -379,14 +479,15 @@ int main() {
 		mainSP.setUniformVec3("dirLight.direction", dirLight.direction);
 		mainSP.setUniformVec3("dirLight.color", dirLight.color);
 		//	Set spotlights and number of them
-		mainSP.setUniformInt("numSpotLights", spotLights.size());
-		for (int i = 0; i < spotLights.size(); i++) {
+		mainSP.setUniformInt("numSpotLights", spotlights.size());
+		for (int i = 0; i < spotlights.size(); i++) {
 			std::string temp = "spotLights[";
 			temp += std::to_string(i) + "]";
-			mainSP.setUniformVec3((temp + ".position").c_str(), spotLights[i].position);
-			mainSP.setUniformVec3((temp + ".direction").c_str(), spotLights[i].direction);
-			mainSP.setUniformFloat((temp + ".cosineCutoff").c_str(), spotLights[i].cosineCutoff);
-			mainSP.setUniformVec3((temp + ".color").c_str(), spotLights[i].color);
+			mainSP.setUniformVec3((temp + ".position").c_str(), spotlights[i].position);
+			mainSP.setUniformVec3((temp + ".direction").c_str(), spotlights[i].direction);
+			mainSP.setUniformFloat((temp + ".cosineInnerCutoff").c_str(), spotlights[i].cosineInnerCutoff);
+			mainSP.setUniformFloat((temp + ".cosineOuterCutoff").c_str(), spotlights[i].cosineOuterCutoff);
+			mainSP.setUniformVec3((temp + ".color").c_str(), spotlights[i].color);
 		}
 		//	Set camera position
 		mainSP.setUniformVec3("cameraPosition", cameraPosition);
