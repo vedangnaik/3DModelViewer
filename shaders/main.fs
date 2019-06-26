@@ -131,12 +131,8 @@ vec3 pointLightsContribution() {
 
 		Lo += (kD * albedo / PI + specular) * radiance * NdotL;
 	}
-	 
-	vec3 ambient = vec3(0.03) *	ao * albedo;
-	vec3 color = ambient + Lo;
-	color = color / (color + vec3(1.0));
-	color = pow(color, vec3(1.0/2.2));
-	return color;
+	
+	return Lo;
 }
 
 vec3 directionalLightContribution() {
@@ -170,12 +166,7 @@ vec3 directionalLightContribution() {
 	float NdotL = max(dot(normal, lightDirection), 0.0);
 	vec3 Lo = (kD * albedo / PI + specular) * radiance * NdotL;
 
-
-	vec3 ambient = vec3(0.03) *	ao * albedo;
-	vec3 color = ambient + Lo;
-	color = color / (color + vec3(1.0));
-	color = pow(color, vec3(1.0/2.2));
-	return color;
+	return Lo;
 }
 
 vec3 spotLightsContribution() {
@@ -216,15 +207,16 @@ vec3 spotLightsContribution() {
 
 		Lo += (kD * albedo / PI + specular) * radiance * NdotL;
 	}
-	 
-	vec3 ambient = vec3(0.03) *	ao * albedo;
-	vec3 color = ambient + Lo;
-	color = color / (color + vec3(1.0));
-	color = pow(color, vec3(1.0/2.2));
-	return color;
+	return Lo;
 }
 
 void main() {
-	vec3 color = spotLightsContribution();
+	vec3 albedo = pow(texture(albedoMap, v2fTextureCoord.xy).rgb, vec3(2.2));
+	float ao = texture(aoMap, v2fTextureCoord.xy).r;
+
+	vec3 ambient = vec3(0.03) *	ao * albedo;
+	vec3 color = ambient + pointLightsContribution() + directionalLightContribution() + spotLightsContribution();
+	color = color / (color + vec3(1.0));
+	color = pow(color, vec3(1.0/2.2));
 	fragmentColor = vec4(color, 1.0);
 }

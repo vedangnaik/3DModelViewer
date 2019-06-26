@@ -20,12 +20,12 @@ unsigned int SCR_HEIGHT = 1080;
 float ASP_RATIO = 1.777f;
 //	Model matrix globally defined as it is directly controlled by the user
 glm::mat4 modelMatrix = glm::mat4(1.0f);
-//	Control sensitivities
-//	TODO set these from the GUI
+//	Control sensitivities and their window handle
 float rotatingAngle = 5.0f; // degrees, set to preference
 float translationalOffset = 0.25f; // unitless, set to preference
 float scaleFactor = 0.05f;
-//	Texture handles
+bool sensitivitesModWinOpen = false;
+//	Texture handles and names of uniform sampler2Ds
 unsigned int textureHandles[5];
 std::string textureNames[] = {
 	"albedoMap",
@@ -177,21 +177,32 @@ int main() {
 	ImGui_ImplOpenGL3_Init();
 
 
-	// View and projection matrices
+	// Load shaders
+	ShaderProgram mainSP = ShaderProgram("shaders/main.vs", "shaders/main.fs");
+	mainSP.use();
+
+
+	// View and projection matrices and camera position
 	glm::mat4 viewMatrix = glm::lookAt(
 		glm::vec3(0.0f, 0.0f, 10.0f),
 		glm::vec3(0.0f),
 		glm::vec3(0.0f, 1.0f, 0.0f)
 	);
-	glm::vec3 cameraPosition = glm::vec3(0.0f, 0.0f, 10.0f);
 	glm::mat4 projectionMatrix = glm::perspective(
 		glm::radians(45.0f),
 		ASP_RATIO,
 		0.1f,
 		100.0f
 	);
+	glm::vec3 cameraPosition = glm::vec3(0.0f, 0.0f, 10.0f);
+	// These three never change, so they're set outside the main loop
+	mainSP.setUniformMat4("view", viewMatrix);
+	mainSP.setUniformMat4("projection", projectionMatrix);
+	mainSP.setUniformVec3("cameraPosition", cameraPosition);
 
-	// Lighting
+
+	// Default startup values
+	//	Lighting: one point light, directional light and spotlight
 	std::vector<PointLight> pointLights;
 	pointLights.push_back(PointLight{
 		glm::vec3(-10.0f, 10.0f, 10.0f),
@@ -209,18 +220,13 @@ int main() {
 		glm::cos(glm::radians(20.0f)),
 		glm::vec3(100.0f, 50.0f, 31.0f)
 	});
-
-	// Load default  model and textures
+	//	Load default  model and textures
 	Model model = Model("assets/crate.3ds");
 	textureHandles[0] = createTexture("assets/stone/stone-albedo.png");
 	textureHandles[1] = createTexture("assets/stone/stone-normal.png");
 	textureHandles[2] = createTexture("assets/stone/stone-metalness.png");
 	textureHandles[3] = createTexture("assets/stone/stone-rough.png");
 	textureHandles[4] = createTexture("assets/stone/stone-ao.png");
-
-
-	// Load shaders
-	ShaderProgram mainSP = ShaderProgram("shaders/main.vs", "shaders/main.fs");
 
 
 	// Main render loop
@@ -235,6 +241,9 @@ int main() {
 
 		// Main Menubar declaration
 		if (ImGui::BeginMainMenuBar()) {
+			if (ImGui::Button("Reset")) {
+				modelMatrix = glm::mat4(1.0f);
+			}
 			if (ImGui::Button("Open Model")) {
 				pfd::open_file f = pfd::open_file("Select your file: ");
 				model = Model(f.result()[0].c_str());
@@ -264,13 +273,17 @@ int main() {
 			}
 			if (ImGui::BeginMenu("Lighting")) {
 				if (ImGui::BeginMenu("Point Lights")) {
-					if (ImGui::Button("Add Point Light")) {
-						pointLightCreateWinOpen = true;
+					if (pointLights.size() <= 16) {
+						if (ImGui::Button("Add Point Light")) {
+							pointLightCreateWinOpen = true;
+						}
 					}
+					ImGui::Text((std::to_string(pointLights.size()) + "/16").c_str());
 					ImGui::Separator();
+
 					for (int i = 0; i < pointLights.size(); i++) {
 						std::string temp = "Point Light ";
-						temp += std::to_string(i);
+						temp += std::to_string(i + 1);
 						if (ImGui::MenuItem(temp.c_str())) {
 							// Sets these global variables so that they can be modified
 							pointLightModWinOpen = true;
@@ -283,13 +296,17 @@ int main() {
 					dirLightModWinOpen = true;
 				}
 				if (ImGui::BeginMenu("Spotlights")) {
-					if (ImGui::Button("Add Spotlight")) {
-						spotlightCreateWinOpen = true;
-					}
+					if (spotlights.size() <= 16) {
+						if (ImGui::Button("Add Spotlight")) {
+							spotlightCreateWinOpen = true;
+						}
+					}					
+					ImGui::Text((std::to_string(spotlights.size()) + "/16").c_str());
 					ImGui::Separator();
+
 					for (int i = 0; i < spotlights.size(); i++) {
 						std::string temp = "Spotlight ";
-						temp += std::to_string(i);
+						temp += std::to_string(i + 1);
 						if (ImGui::MenuItem(temp.c_str())) {
 							// Sets these global variables so that they can be modified
 							spotlightModWinOpen = true;
@@ -300,12 +317,18 @@ int main() {
 				}
 				ImGui::EndMenu();
 			}
-			if (ImGui::Button("Reset")) {
-				modelMatrix = glm::mat4(1.0f);
+			if (ImGui::BeginMenu("Settings")) {
+				if (ImGui::MenuItem("Control Sensitivities")) {
+					sensitivitesModWinOpen = true;
+				}
+				ImGui::EndMenu();
 			}
 			ImGui::EndMainMenuBar();
 		}
-		// Keep the point light modification and creation windows open and modify pointLightToMod
+
+
+		// Listeners for the various modification windows
+		//	Keep the point light modification and creation windows open and modify pointLightToMod
 		if (pointLightModWinOpen) {
 			ImGui::Begin("Modifying point light", &pointLightModWinOpen, ImGuiWindowFlags_AlwaysAutoResize);
 			
@@ -366,7 +389,7 @@ int main() {
 			
 			ImGui::End();
 		}
-		// Keep the directional light modification window open and modify dirLight
+		//	Keep the directional light modification window open and modify dirLight
 		if (dirLightModWinOpen) {
 			ImGui::Begin("Modifying directional light", &dirLightModWinOpen, ImGuiWindowFlags_AlwaysAutoResize);
 			
@@ -383,7 +406,7 @@ int main() {
 			
 			ImGui::End();
 		}
-		// Keep the spotlight modification and creation windows open and modify spotlightToMod
+		//	Keep the spotlight modification and creation windows open and modify spotlightToMod
 		if (spotlightModWinOpen) {
 			ImGui::Begin("Modifying spotlight", &spotlightModWinOpen, ImGuiWindowFlags_AlwaysAutoResize);
 			
@@ -392,7 +415,7 @@ int main() {
 			ImGui::InputFloat("y", &spotlightToMod->position.y);
 			ImGui::InputFloat("z", &spotlightToMod->position.z);
 			ImGui::Separator();
-
+			// The space after x, y, z is needed to keep the inputs separate. Dear ImGUI uses them as identifiers.
 			ImGui::Text("Direction");
 			ImGui::InputFloat("x ", &spotlightToMod->direction.x);
 			ImGui::InputFloat("y ", &spotlightToMod->direction.y);
@@ -411,6 +434,16 @@ int main() {
 			spotlightToMod->cosineInnerCutoff = cos(glm::radians(tempInnerCutoff));
 			ImGui::InputFloat("Outer cutoff", &tempOuterCutoff);
 			spotlightToMod->cosineOuterCutoff = cos(glm::radians(tempOuterCutoff));
+			ImGui::Separator();
+
+			if (ImGui::Button("Delete")) {
+				for (int i = 0; i < spotlights.size(); i++) {
+					if (spotlights[i] == *spotlightToMod) {
+						spotlights.erase(spotlights.begin() + i);
+						break;
+					}
+				}
+			}
 
 			ImGui::End();
 		}
@@ -450,13 +483,20 @@ int main() {
 
 			ImGui::End();
 		}
+		//	Keep the control sensitivities modification window open
+		if (sensitivitesModWinOpen) {
+			ImGui::Begin("Modifying control sensitivies", &sensitivitesModWinOpen, ImGuiWindowFlags_AlwaysAutoResize);
+			ImGui::InputFloat("Rotational angle", &rotatingAngle);
+			ImGui::InputFloat("Movement sensitivity", &translationalOffset);
+			ImGui::InputFloat("Zoom speed", &scaleFactor);
+			ImGui::End();
+		}
+
 
 		// Set vertex shader uniforms
 		mainSP.use();
 		mainSP.setUniformMat4("model", modelMatrix);
 		mainSP.setUniformMat3("inverseModel", glm::mat3(glm::transpose(glm::inverse(modelMatrix))));
-		mainSP.setUniformMat4("view", viewMatrix);
-		mainSP.setUniformMat4("projection", projectionMatrix);
 		// Set fragment shader uniforms
 		//	Set textures
 		for (int i = 0; i < 5; i++) {
@@ -489,8 +529,8 @@ int main() {
 			mainSP.setUniformFloat((temp + ".cosineOuterCutoff").c_str(), spotlights[i].cosineOuterCutoff);
 			mainSP.setUniformVec3((temp + ".color").c_str(), spotlights[i].color);
 		}
-		//	Set camera position
-		mainSP.setUniformVec3("cameraPosition", cameraPosition);
+
+
 		// Draw model
 		model.draw();
 

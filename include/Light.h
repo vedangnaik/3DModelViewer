@@ -37,3 +37,15 @@ struct SpotLight {
 	float cosineOuterCutoff;
 	glm::vec3 color;
 };
+bool operator== (SpotLight a1, SpotLight a2) {
+	if (a1.position == a2.position &&
+		a1.direction == a2.direction &&
+		a1.color == a2.color &&
+		a1.cosineInnerCutoff == a2.cosineInnerCutoff &&
+		a1.cosineOuterCutoff == a2.cosineOuterCutoff) {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
