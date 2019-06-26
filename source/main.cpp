@@ -197,6 +197,13 @@ int main() {
 		glm::vec3(-10.0f, -10.0f, 0.0f),
 		glm::vec3(100.0f, 50.0f, 31.0f)
 	};
+	std::vector<SpotLight> spotLights;
+	spotLights.push_back(SpotLight{
+		glm::vec3(0.0f, 0.0f, 10.0f),
+		glm::vec3(0.0f, 0.0f, -1.0f),
+		cos(glm::radians(12.5f)),
+		glm::vec3(100.0f, 50.0f, 31.0f)
+	});
 
 	// Load default  model and textures
 	Model model = Model("assets/crate.3ds");
@@ -368,10 +375,20 @@ int main() {
 			mainSP.setUniformFloat((temp + ".attLinear").c_str(), pointLights[i].attLinear);
 			mainSP.setUniformFloat((temp + ".attQuadratic").c_str(), pointLights[i].attQuadratic);
 		}
-		// Set directional light
+		//	Set directional light
 		mainSP.setUniformVec3("dirLight.direction", dirLight.direction);
 		mainSP.setUniformVec3("dirLight.color", dirLight.color);
-		// Set camera position
+		//	Set spotlights and number of them
+		mainSP.setUniformInt("numSpotLights", spotLights.size());
+		for (int i = 0; i < spotLights.size(); i++) {
+			std::string temp = "spotLights[";
+			temp += std::to_string(i) + "]";
+			mainSP.setUniformVec3((temp + ".position").c_str(), spotLights[i].position);
+			mainSP.setUniformVec3((temp + ".direction").c_str(), spotLights[i].direction);
+			mainSP.setUniformFloat((temp + ".cosineCutoff").c_str(), spotLights[i].cosineCutoff);
+			mainSP.setUniformVec3((temp + ".color").c_str(), spotLights[i].color);
+		}
+		//	Set camera position
 		mainSP.setUniformVec3("cameraPosition", cameraPosition);
 		// Draw model
 		model.draw();
