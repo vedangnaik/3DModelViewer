@@ -4,7 +4,7 @@
  <img src="https://user-images.githubusercontent.com/25436568/136638979-7b398eec-9a15-4dea-bf58-dcec2d78adb9.PNG">
 </p>
 <p align=center>
-  <em><a href="https://sketchfab.com/3d-models/modular-sci-fi-wall-test-2-060031f51d7246379186bbc626be13b9">Module Sci-Fi Wall Test 2</a>, rendered and lit by 3DModelViewer</em>
+  <em><a href="https://sketchfab.com/3d-models/modular-sci-fi-wall-test-2-060031f51d7246379186bbc626be13b9">Modular Sci-Fi Wall Test 2</a>, rendered and lit by 3DModelViewer</em>
 </p>
 
 A simple 3D model viewer I made to test my knowledge of graphics programming in OpenGL (shoutout to https://learnopengl.com/ 😊)
